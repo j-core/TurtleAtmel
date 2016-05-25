@@ -33,22 +33,26 @@
   this software.
 */
 //-----------------------------------------------------------------------------
-/*		BOOTLOADER
+/*	LOADING CODE
 
-	To replace the bootloader on an erased Atmel simply load DFU_Bootloader.hex
-	and set fuse BLB1 to SPM_DISABLE
+	To use dfu-programmer to program the device:
+	hold down white button
+	short R119
 
-	To make a hex file with the bootloader included, take the ordinary hex file, delete the last line
-	(:00000001FF) and append dfu.hex. Don't forget to set the SPM_DISABLE fuse
-
-	To use dfu-programmer, need to power the board not via USB
-	then hold down white button
-	then short R119
-	then plug in USB and do:
+	run these commands:
 		dfu-programmer atmega32u2 erase
 		dfu-programmer atmega32u2 flash Turtle.hex
-	then disconnect power and USB
-	then reconnect USB
+		dfu-programmer atmega32u2 launch
+
+	The commands erase the Atmel, re-program it and then run the new code.
+
+	BOOTLOADER
+
+	To replace the bootloader on an erased Atmel, load DFU_Bootloader.hex using
+	a programmer (e.g. AVRISP2) and set fuse BLB1 to SPM_DISABLE
+
+	To make a hex file with the bootloader included, take the ordinary .hex file, delete the last line
+	(:00000001FF) and append dfu.hex. Don't forget to set the SPM_DISABLE fuse.
 */
 
 #include <ctype.h>
