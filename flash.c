@@ -208,7 +208,7 @@ uint8 ReadFlash(uint8 mode, uint32 address) {
 
 	uint8 data;
 	
-	cli();
+//	cli();
 	switch (mode) {
 		case FLASH_START:
 			FLASH_SEL;
@@ -232,7 +232,7 @@ uint8 ReadFlash(uint8 mode, uint32 address) {
 			data = 0;
 			break;
 	}
-	sei();
+//	sei();
 	return data;
 }
 
@@ -281,6 +281,8 @@ void CfgVerify(void) {
 }
 
 //-----------------------------------------------------------------------------
+// This is ridiculously slow, don't know why
+//-----------------------------------------------------------------------------
 void CheckBlank(void) {
 
 	uint8 b, failed;
@@ -290,13 +292,12 @@ void CheckBlank(void) {
 	for (addr = 0, failed = false; addr <= MAX_FLASH; addr++) {
 		if (!(addr % 10240))
 			fprintf_P(fio, PSTR("%ld kb\r"), addr >> 10);
-//		HandleUsb();
+		HandleUsb();
 
 		// read flash
 		b = ReadFlash(FLASH_CONT, 0);
 		if (b != 0xFF) {
 			failed = true;
-//			EmptyTxBuf();
 			fprintf_P(fio, PSTR("%08lX: %02X\r\n"), addr, b);
 			break;
 		}
@@ -345,7 +346,7 @@ void ExtReadFlash(void) {
 //-----------------------------------------------------------------------------
 void EraseFlash(void) {
 
-	fputs_P(PSTR("Erasing flash (takes < 30s...)"), fio);
+	fputs_P(PSTR("Erasing flash... "), fio);
 	HandleUsb();
 
 	WriteEnable(true);

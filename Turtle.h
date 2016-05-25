@@ -54,7 +54,7 @@ struct {
 	uint8			pgmMode			: 1;
 	uint8			sdOk			: 1;
 	uint8			error			: 1;
-	uint8			debounce		: 1;
+//	uint8			debounce		: 1;
 } gFlags;
 
 // LED states
@@ -69,9 +69,6 @@ struct {
 #define BUTT_RELEASED	2
 
 #define BUTT_LONG		12					// length of a long button press
-
-//#define E2_DFU			(uint8 *)10
-//#define DFU				0x69
 
 extern	FILE fusb;
 extern	FILE *fio;

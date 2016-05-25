@@ -53,6 +53,13 @@
 
 	To make a hex file with the bootloader included, take the ordinary .hex file, delete the last line
 	(:00000001FF) and append dfu.hex. Don't forget to set the SPM_DISABLE fuse.
+
+//-----------------------------------------------------------------------------
+	TO DO:
+
+	Find out why blank check is so slow and fix it
+	See if it's possible to set the MAC address
+
 */
 
 #include <ctype.h>
@@ -151,10 +158,10 @@ ISR(TIMER1_COMPA_vect) {
 		case BUTT_DOWN:
 			buttCounter++;
 			if (!MODE_BUTT_PRESS && (buttCounter < BUTT_LONG)) {
-				if (!gFlags.debounce)
+//				if (!gFlags.debounce)
 					gFlags.shortPress = true;
-				else
-					gFlags.debounce = false;
+//				else
+//					gFlags.debounce = false;
 				gFlags.buttonState = BUTT_RELEASED;
 			}
 		
@@ -173,16 +180,16 @@ ISR(TIMER1_COMPA_vect) {
 	ReadComparator();
 
 	// that's it for normal mode
-/*	if (!gFlags.pgmMode)
+	if (!gFlags.pgmMode)
 		return;
 	
 	// pgmMode
 	if (gTicks) gTicks--;
 	if (gSdTimeout) gSdTimeout--;
-	//	if (gSdTimeout2) gSdTimeout2--;
+	if (gSdTimeout2) gSdTimeout2--;
 	//	if (gSdTimeout3) gSdTimeout3--;
 
-	if (gFlags.pgmMode) {*/
+	if (gFlags.pgmMode) {
 		switch (gFlags.ledState) {
 			case LED_IDLE:
 				DEBUG_HI;
@@ -210,7 +217,7 @@ ISR(TIMER1_COMPA_vect) {
 				flasher &= 0x03;
 				break;
 		}
-//	}
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -243,7 +250,7 @@ void InitTimers(uint8 on) {
 	
 	gFlags.buttonState = BUTT_IDLE;
 	gFlags.shortPress = gFlags.longPress = false;
-	gFlags.debounce = true;
+//	gFlags.debounce = true;
 }
 
 //-----------------------------------------------------------------------------
@@ -313,7 +320,7 @@ uint8 USBgetch(char *c) {
 	} while ((x = CDC_Device_ReceiveByte(&VirtualSerial_CDC_Interface)) < 0);
 	
 	*c = (char)(lsb(x));
-//	UartPutch(*c);
+
 	return true;
 }
 
@@ -328,12 +335,10 @@ uint8 Getch(char *c) {
 //-----------------------------------------------------------------------------
 void PrintHelp(void) {
 	
-	fputs_P(PSTR("\r\n\r\nBy Jove!!!\r\n"), fio);
-
 	fputs_P(PSTR("\r\n\r\nTurtle FPGA Programmer\r\n"), fio);
 	fputs_P(PSTR("======================\r\n\r\n"), fio);
 	fputs_P(PSTR("Commands:\r\n"), fio);
-	fputs_P(PSTR("\tB\tverify FPGA configuration erased\r\n"), fio);
+//	fputs_P(PSTR("\tB\tverify FPGA configuration erased\r\n"), fio);
 	fputs_P(PSTR("\tE\terase FPGA configuration\r\n"), fio);
 	fputs_P(PSTR("\tH\tprint this help message\r\n"), fio);
 //	fputs_P(PSTR("\tM\tset MAC address\r\n"), fio);
@@ -351,9 +356,9 @@ void ProcessCommand(char command) {
 	
 	switch (toupper(command)) {
 		
-		case 'B':
+/*		case 'B':
 			CheckBlank();
-			break;
+			break;*/
 		
 		case 'E':
 			EraseFlash();
@@ -367,10 +372,10 @@ void ProcessCommand(char command) {
 			ExtReadFlash();
 			break;
 		
-		case 'M':
+/*		case 'M':
 			pf_mount(true);
-//			WriteMac();
-			break;
+			WriteMac();
+			break;*/
 		
 		case 'V':
 			CfgVerify();
@@ -388,8 +393,6 @@ void ProcessCommand(char command) {
 			fputs_P(PSTR("changing to run mode\r\n"), fio);
 			gFlags.pgmMode = false;
 			DEBUG_LO;
-			
-			FPGA_RESET;			// DEBUG!!!!
 			break;
 
 		default:
@@ -427,9 +430,6 @@ int main(void) {
 	
 	gFlags.pgmMode = false;
 	GlobalInterruptEnable();
-	
-	FPGA_RESET;			// DEBUG!!!!!!
-//	gFlags.shortPress = true;
 	
 	for (;;) {
 		// check mode

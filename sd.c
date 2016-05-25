@@ -129,6 +129,7 @@ DSTATUS disk_initialize(void) {
 	SPCR = spi;								// restore SPI speed
 
 	// Send CMD0 GO_IDLE_STATE
+	gSdTimeout = SD_TIMEOUT;
 	if (SendCommand(CMD0, 0) != 1) {
 		if (SendCommand(CMD0, 0) != 1) {
 			fputs_P(PSTR("CMD0 failed \r\n"), fio);
@@ -138,6 +139,7 @@ DSTATUS disk_initialize(void) {
 
 	// Send CMD8 to find out what disc type we have
 	uint8 ocr[4];
+	gSdTimeout = SD_TIMEOUT;
 	if ((ocr[0] = SendCommand(CMD8, 0x000001AA)) == 1) {				// this is an SDv2 card
 		for (uint8 i = 0; i < 4; i++)						// get the response
 			ocr[i] = SpiTransfer(0xFF);
