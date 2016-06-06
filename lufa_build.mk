@@ -268,7 +268,7 @@ sym: $(TARGET).sym
 $(SRC):
 #	$(error object files \"$(MAKEFILE_LIST)\")
 #	@echo \"$(OBJECT_FILES)\"
-	$(error Fucking Source file does not exist: $@)
+	$(error Source file does not exist: $@)
 
 # Compiles an input C source file and generates an assembly listing for it
 %.s: %.c $(MAKEFILE_LIST)

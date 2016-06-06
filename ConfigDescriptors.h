@@ -53,7 +53,7 @@
 	/* Includes: */
 		#include "Common.h"
 //		#include "USBMode.h"
-		#include "HostStandardReq.h"
+//		#include "HostStandardReq.h"
 		#include "StdDescriptors.h"
 
 	/* Enable C linkage for C++ Compilers: */
