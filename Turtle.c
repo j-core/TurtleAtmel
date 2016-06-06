@@ -275,7 +275,7 @@ void SetupHardware(void) {
 	InitTimers(true);
 	USB_Init();
 	SpiInit(false);
-	SerialInit();
+	SerialInit(true);
 	
 	// Init comparator
 	ACSR = 0b01010000;
@@ -389,6 +389,7 @@ void ProcessCommand(char command) {
 			pf_mount(false);
 //			InitTimers(false);
 			SpiInit(false);															// release the SPI bus
+            SerialInit(true);
 			Delay_MS(1000);
 			fputs_P(PSTR("changing to run mode\r\n"), fio);
 			gFlags.pgmMode = false;
@@ -438,6 +439,7 @@ int main(void) {
 			gFlags.pgmMode = true;
 			fputs_P(PSTR("\r\nChanging to programmer mode\r\n"), fio);
 			HandleUsb();
+            SerialInit(false);
 //			InitTimers(true);
 			SpiInit(true);														// take over the SPI bus
 			fputs_P(PSTR("Mounting SD drive\r\n"), fio);
