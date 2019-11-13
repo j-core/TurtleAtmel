@@ -948,7 +948,7 @@ FRESULT pf_read (
 	uint16* br		/* Pointer to number of bytes read */
 )
 {
-//	DRESULT dr;
+	DRESULT dr;
 	CLUST clst;
 	uint32 sect, remain;
 	uint16 rcnt;
@@ -990,12 +990,12 @@ FRESULT pf_read (
 		if (rcnt > btr) {
 			rcnt = btr;
 		}
-/*		dr = disk_readp(!buff ? 0 : rbuff, gFatFs.dsect, (uint16)(gFatFs.fptr % 512), rcnt);
+		dr = disk_readp(!buff ? 0 : rbuff, gFatFs.dsect, (uint16)(gFatFs.fptr % 512), rcnt);
 		if (dr) {
 			goto fr_abort;
-		}*/
-		while (disk_readp(!buff ? 0 : rbuff, gFatFs.dsect, (uint16)(gFatFs.fptr % 512), rcnt))
-			fputc('r', fio);
+		}
+//		while (disk_readp(!buff ? 0 : rbuff, gFatFs.dsect, (uint16)(gFatFs.fptr % 512), rcnt))
+//			fputc('r', fio);
 
 		gFatFs.fptr += rcnt;
 		rbuff += rcnt;			/* Update pointers and counters */

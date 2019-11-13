@@ -18,8 +18,13 @@ uint8	CfgCopy(void);
 //void	CfgTest(void);
 void	CfgVerify(void);
 void	CheckBlank(void);
+void	ResetFlash(void);
 
-#define MAX_FLASH				0x001FFFFFul
+#if PCB == PCB1V0
+	#define MAX_FLASH				0x001FFFFFul
+#else
+	#define MAX_FLASH				0x003FFFFFul
+#endif
 #define FLASH_PAGE_SIZE			256
 #define DEFAULT_FLASH_TIMEOUT	40			// ms
 #define ERASE_FLASH_TIMEOUT		12000		// ms
@@ -37,6 +42,8 @@ void	CheckBlank(void);
 #define BULK_ERASE				0xC7
 #define POWER_DOWN				0xB9
 #define POWER_UP				0xAB
+#define RSTEN					0x66
+#define RST						0x99
 
 // write modes - used by & ReadFlash()
 #define FLASH_START		0x01
