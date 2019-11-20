@@ -233,7 +233,7 @@ void FlushSerial(void) {
 }
 
 //-----------------------------------------------------------------------------
-void SerialInit(uint8 init) {
+void SerialInit(void) {
 	
 	sHandleBackspace = false;
 
@@ -241,13 +241,8 @@ void SerialInit(uint8 init) {
 	UCSR1B = 0;
 	UCSR1A = 0;
 	UCSR1C = 0;
-    UART_RELEASE;
 
-    if (!init)
-        return;
-    
 	// Reconfigure the USART in double speed mode for a wider baud rate range at the expense of accuracy
-    UART_GRAB;
 	UCSR1A = 1 << U2X1;												// double speed mode
 	UBRR1 = F_CPU / (8UL * FPGA_BAUD) - 1;							// baud rate - double speed mode	
 	UCSR1B = (1 << TXEN1) | (1 << RXCIE1) | (1 << RXEN1); 			// enable tx and rx and rx irq

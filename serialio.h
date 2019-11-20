@@ -19,7 +19,7 @@ int			UartPut(char c, FILE *stream);
 uint8		UartChars(void);
 uint8 		UartGetch(char *c);
 int			UartGet(FILE *stream);
-void 		SerialInit(uint8 init);
+void 		SerialInit(void);
 void		EmptyTxBuf(void);
 uint8 		TxBufFull(void);
 void 		FlushSerial(void);
