@@ -8,7 +8,8 @@
 
 #include "platform.h"
 
-#define FPGA_BAUD		38400
+//#define FPGA_BAUD		38400
+#define FPGA_BAUD		250000
 #define BUFFER_SIZE		32
 
 #define SERIAL_TIMEOUT	(TICK_FREQ * 30)		// serial timeout

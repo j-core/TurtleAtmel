@@ -45,7 +45,7 @@
 	then hold down white button
 	then short R119
 	then plug in USB and do:
-		dfu-programmer atmega32u2 erase
+		dfu-programmer atmega32u2 erase --force
 		dfu-programmer atmega32u2 flash Turtle.hex
 	then disconnect power and USB
 	then reconnect USB
@@ -53,6 +53,7 @@
 
 #include <ctype.h>
 #include <avr/pgmspace.h>
+#include <avr/eeprom.h>
 #include "Turtle.h"
 #include "platform.h"
 #include "flash.h"
@@ -218,28 +219,23 @@ ISR(PCINT1_vect) {
 	Delay_MS(200);
 	FPGA_RELEASE;
 	
-	PCIFR = 2;			// clear interrupt
+	PCIFR = 2;							// clear interrupt
 }
 
 //-----------------------------------------------------------------------------
 void InitTimers(void) {
 	
-//	if (on) {
-		// configure timer 1 to give an interrupt for timeouts & delays
-		TCCR1A = 0;							// CTC mode
-		TCNT1 = 0;							// zero the counter
-		TCCR1B = 0x0D;  					// timer0 prescale 1/1024 - CTC Mode @ 7813Hz
-		OCR1A = 781;						// Gives interrupts every 100ms at 8 MHz CPU
-		TIMSK1 |= (1 << OCIE1A);			// interrupt on match
-/*	} else {
-		TCCR1B = 0;							// stop timer
-//		TIMSK1 &= ~(1 << OCIE1A);			// disable interrupt on match
-	}*/
-	TIFR1 = 0xFF;							// clear all interrupts
-	
 	gFlags.buttonState = BUTT_IDLE;
 	gFlags.shortPress = gFlags.longPress = false;
-	gFlags.debounce = true;
+	gFlags.debounce = false;
+
+	// configure timer 1 to give an interrupt for timeouts & delays
+	TCCR1A = 0;							// CTC mode
+	TCNT1 = 0;							// zero the counter
+	TCCR1B = 0x0D;  					// timer0 prescale 1/1024 - CTC Mode @ 7813Hz
+	OCR1A = 781;						// Gives interrupts every 100ms at 8 MHz CPU
+	TIMSK1 |= (1 << OCIE1A);			// interrupt on match
+	TIFR1 = 0xFF;						// clear all interrupts
 }
 
 //-----------------------------------------------------------------------------
@@ -328,6 +324,7 @@ void PrintHelp(void) {
 	fputs_P(PSTR("======================\r\n\r\n"), fio);
 	fputs_P(PSTR("Commands:\r\n"), fio);
 	fputs_P(PSTR("\tB\tverify FPGA configuration erased\r\n"), fio);
+	fputs_P(PSTR("\tD\tput into DFU mode for upgrading this firmware\r\n"), fio);
 	fputs_P(PSTR("\tE\terase FPGA configuration\r\n"), fio);
 	fputs_P(PSTR("\tH\tprint this help message\r\n"), fio);
 //	fputs_P(PSTR("\tM\tset MAC address\r\n"), fio);
@@ -349,6 +346,33 @@ void ProcessCommand(char command) {
 			CheckBlank();
 			break;
 		
+		case 'D':
+			fputs_P(PSTR("This will start the firmware upgrade process,\r\npress 'c' to continue, any other key to cancel\r\n"), fio);
+			char c;
+			Getch(&c);
+			fputc(c, fio);
+			if (c != 'c') {
+				PrintHelp();
+				break;
+			}
+			HandleUsb();
+
+			fputs_P(PSTR("Disconnect your serial connection, rebooting into DFU mode in 8"), fio);
+			gFlags.ledState = LED_IDLE;
+			DEBUG_HI;
+			for (uint8 i = 7; i; i--) {
+				for (gSdTimeout = TICK_FREQ; gSdTimeout; )
+					HandleUsb();
+				fprintf_P(fio, PSTR(".%d"), i);
+			}
+			EmptyTxBuf();
+			cli();
+			DEBUG_LO;
+			wdt_reset();									// reboot
+			wdt_enable(WDTO_30MS);
+			for (;;);
+			break;
+
 		case 'E':
 			EraseFlash();
 			break;
@@ -404,10 +428,17 @@ void HandleUsb(void) {
 //-----------------------------------------------------------------------------
 int main(void) {
 	
+	// check to see if we need to jump to bootloader
+	f_ptr_t booty = (f_ptr_t)0x7000;
+
+	if (MCUSR & 0x08)									// if the reset was caused by watchdog
+		booty();										// jump to bootloader
+	
+	// normal start
 	int16 rxByte;
 	uint16 BufferCount;
 	char c;
-	
+
 	SetupHardware();
 
 	fio = &fusb;
@@ -417,10 +448,6 @@ int main(void) {
 	
 	gFlags.pgmMode = false;
 	GlobalInterruptEnable();
-	
-//	FPGA_RESET;			// DEBUG!!!!!!
-//	Delay_MS(200);
-//	gFlags.shortPress = true;
 	
 	for (;;) {
 		// check mode

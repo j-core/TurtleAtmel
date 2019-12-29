@@ -76,6 +76,7 @@ struct {
 extern	FILE fusb;
 extern	FILE *fio;
 extern USB_ClassInfo_CDC_Device_t VirtualSerial_CDC_Interface;
+typedef void (*f_ptr_t)(void);
 
 void SetupHardware(void);
 

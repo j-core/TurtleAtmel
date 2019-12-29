@@ -272,24 +272,6 @@
     <Compile Include="flash.h">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="HIDClassCommon.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="HIDParser.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="HIDParser.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="HIDReportData.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="HostStandardReq.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="HostStandardReq.h">
-      <SubType>compile</SubType>
-    </Compile>
     <Compile Include="pff.c">
       <SubType>compile</SubType>
     </Compile>
