@@ -33,22 +33,33 @@
   this software.
 */
 //-----------------------------------------------------------------------------
-/*		BOOTLOADER
+/*	LOADING CODE
 
-	To replace the bootloader on an erased Atmel simply load DFU_Bootloader.hex
-	and set fuse BLB1 to SPM_DISABLE
+	To use dfu-programmer to program the device:
+	hold down white button
+	short R119
 
-	To make a hex file with the bootloader included, take the ordinary hex file, delete the last line
-	(:00000001FF) and append dfu.hex. Don't forget to set the SPM_DISABLE fuse
-
-	To use dfu-programmer, need to power the board not via USB
-	then hold down white button
-	then short R119
-	then plug in USB and do:
-		dfu-programmer atmega32u2 erase --force
+	run these commands:
+		dfu-programmer atmega32u2 erase
 		dfu-programmer atmega32u2 flash Turtle.hex
-	then disconnect power and USB
-	then reconnect USB
+		dfu-programmer atmega32u2 launch
+
+	The commands erase the Atmel, re-program it and then run the new code.
+
+	BOOTLOADER
+
+	To replace the bootloader on an erased Atmel, load DFU_Bootloader.hex using
+	a programmer (e.g. AVRISP2) and set fuse BLB1 to SPM_DISABLE
+
+	To make a hex file with the bootloader included, take the ordinary .hex file, delete the last line
+	(:00000001FF) and append dfu.hex. Don't forget to set the SPM_DISABLE fuse.
+
+//-----------------------------------------------------------------------------
+	TO DO:
+
+	Find out why blank check is so slow and fix it
+	See if it's possible to set the MAC address
+
 */
 
 #include <ctype.h>
@@ -108,21 +119,21 @@ static void ReadComparator(void) {
 	gFlags.powfail = false;
 	for (uint8 chan = 2; chan < 5; chan++) {
 		if (ACSR & 0x20)
-			gFlags.powfail = true;
+		gFlags.powfail = true;
 		ACMUX = chan;
-		NOP;
-		NOP;
+		asm volatile("nop");
+		asm volatile("nop");
 	}
 	
 //	if (gFlags.pgmMode)
 //		return;
-		
-/*	if (gFlags.powfail)
+	
+	if (gFlags.powfail)
 //		POW_GOOD_LO;
-		gFlags.ledState = LED_SLOW;
-	else
-		gFlags.ledState = LED_FAST;
-//		POW_GOOD_HI;*/
+	gFlags.ledState = LED_SLOW;
+		else
+	gFlags.ledState = LED_FAST;
+//		POW_GOOD_HI;
 }
 
 //-----------------------------------------------------------------------------
@@ -148,10 +159,10 @@ ISR(TIMER1_COMPA_vect) {
 		case BUTT_DOWN:
 			buttCounter++;
 			if (!MODE_BUTT_PRESS && (buttCounter < BUTT_LONG)) {
-				if (!gFlags.debounce)
+//				if (!gFlags.debounce)
 					gFlags.shortPress = true;
-				else
-					gFlags.debounce = false;
+//				else
+//					gFlags.debounce = false;
 				gFlags.buttonState = BUTT_RELEASED;
 			}
 		
@@ -179,7 +190,7 @@ ISR(TIMER1_COMPA_vect) {
 	if (gSdTimeout2) gSdTimeout2--;
 //	if (gSdTimeout3) gSdTimeout3--;
 
-//	if (gFlags.pgmMode) {*/
+	if (gFlags.pgmMode) {
 		switch (gFlags.ledState) {
 			case LED_IDLE:
 				DEBUG_HI;
@@ -207,7 +218,7 @@ ISR(TIMER1_COMPA_vect) {
 				flasher &= 0x03;
 				break;
 		}
-//	}
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -223,19 +234,24 @@ ISR(PCINT1_vect) {
 }
 
 //-----------------------------------------------------------------------------
-void InitTimers(void) {
+void InitTimers(uint8 on) {
+	
+	if (on) {
+		// configure timer 1 to give an interrupt for timeouts & delays
+		TCCR1A = 0;							// CTC mode
+		TCNT1 = 0;							// zero the counter
+		TCCR1B = 0x0D;  					// timer0 prescale 1/1024 - CTC Mode @ 7813Hz
+		OCR1A = 781;						// Gives interrupts every 100ms at 8 MHz CPU
+		TIMSK1 |= (1 << OCIE1A);			// interrupt on match
+		} else {
+		TCCR1B = 0;							// stop timer
+//		TIMSK1 &= ~(1 << OCIE1A);			// disable interrupt on match
+	}
+	TIFR1 = 0xFF;							// clear all interrupts
 	
 	gFlags.buttonState = BUTT_IDLE;
 	gFlags.shortPress = gFlags.longPress = false;
-	gFlags.debounce = false;
-
-	// configure timer 1 to give an interrupt for timeouts & delays
-	TCCR1A = 0;							// CTC mode
-	TCNT1 = 0;							// zero the counter
-	TCCR1B = 0x0D;  					// timer0 prescale 1/1024 - CTC Mode @ 7813Hz
-	OCR1A = 781;						// Gives interrupts every 100ms at 8 MHz CPU
-	TIMSK1 |= (1 << OCIE1A);			// interrupt on match
-	TIFR1 = 0xFF;						// clear all interrupts
+	//	gFlags.debounce = true;
 }
 
 //-----------------------------------------------------------------------------
@@ -245,22 +261,20 @@ void SetupHardware(void) {
 	MCUSR &= ~(1 << WDRF);
 	wdt_disable();
 
-//#if (PCB == PCB_1V0)
-	FPGA_RELEASE;						// do this before configuring pin as output in order to avoid a glitch
-	DDRB = 0b00110001;
-//	DDRB = 0b00010001;					// FPGA-RST floating
+	DDRB = 0b11110111;
 	DDRC = 0;
 	DDRD = 0b00001000;
 	PORTC |= 0x40;						// enable pull-up on button
-//#endif
+
+	FPGA_RELEASE;
 	FLASH_RELEASE;
 	SD_RELEASE;
 	
 	clock_prescale_set(clock_div_1);	// Disable clock division
-	InitTimers();
+	InitTimers(true);
 	USB_Init();
 	SpiInit(false);
-	SerialInit();
+	SerialInit(true);
 	
 	// Init comparator
 	ACSR = 0b01010000;
@@ -305,7 +319,7 @@ uint8 USBgetch(char *c) {
 	} while ((x = CDC_Device_ReceiveByte(&VirtualSerial_CDC_Interface)) < 0);
 	
 	*c = (char)(lsb(x));
-//	UartPutch(*c);
+
 	return true;
 }
 
@@ -330,7 +344,7 @@ void PrintHelp(void) {
 //	fputs_P(PSTR("\tM\tset MAC address\r\n"), fio);
 	fputs_P(PSTR("\tV\tverify FPGA configuration against SD card\r\n"), fio);
 	fputs_P(PSTR("\tW\twrite FPGA configuration from SD card\r\n"), fio);
-	fputs_P(PSTR("\tX\texit programmer mode and run\r\n\n"), fio);
+	fputs_P(PSTR("\tX\texit programmer mode and run\r\n"), fio);
 }
 
 //-----------------------------------------------------------------------------
@@ -395,12 +409,12 @@ void ProcessCommand(char command) {
 
 		case 'X':
 			pf_mount(false);
-			ResetFlash();											// reset the flash
-			SpiInit(false);											// release the SPI bus
+//			InitTimers(false);
+			SpiInit(false);															// release the SPI bus
+			SerialInit(true);
 			Delay_MS(1000);
 			fputs_P(PSTR("changing to run mode\r\n"), fio);
 			gFlags.pgmMode = false;
-			FPGA_RELEASE;
 			DEBUG_LO;
 			break;
 
@@ -408,8 +422,8 @@ void ProcessCommand(char command) {
 			PrintHelp();
 			break;
 	}
-	if (gFlags.pgmMode)
-		gFlags.ledState = LED_IDLE;
+//	if (gFlags.pgmMode)
+//		gFlags.ledState = LED_IDLE;
 }
 
 //-----------------------------------------------------------------------------
@@ -428,17 +442,17 @@ void HandleUsb(void) {
 //-----------------------------------------------------------------------------
 int main(void) {
 	
-	// check to see if we need to jump to bootloader
+/*	// check to see if we need to jump to bootloader
 	f_ptr_t booty = (f_ptr_t)0x7000;
 
 	if (MCUSR & 0x08)									// if the reset was caused by watchdog
 		booty();										// jump to bootloader
 	
-	// normal start
+	// normal start*/
 	int16 rxByte;
 	uint16 BufferCount;
 	char c;
-
+	
 	SetupHardware();
 
 	fio = &fusb;
@@ -455,9 +469,9 @@ int main(void) {
 			gFlags.shortPress = false;
 			gFlags.pgmMode = true;
 			fputs_P(PSTR("\r\nChanging to programmer mode\r\n"), fio);
-			FPGA_RESET;
-			Delay_MS(20);
-//			HandleUsb();
+			HandleUsb();
+			SerialInit(false);
+			//			InitTimers(true);
 			SpiInit(true);														// take over the SPI bus
 			fputs_P(PSTR("Mounting SD drive\r\n"), fio);
 			pf_mount(true);														// mount SD card

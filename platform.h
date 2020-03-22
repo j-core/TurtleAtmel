@@ -37,6 +37,8 @@
 #define FPGA_RESET			asm volatile("cbi 0x05, 5")		// B5
 #define POW_GOOD_HI			asm volatile("sbi 0x05, 4")		// B4
 #define POW_GOOD_LO			asm volatile("cbi 0x05, 4")		// B4
+#define UART_GRAB           DDRD &= ~0x04					// D2
+#define UART_RELEASE        DDRD |= 0x04					// D2
 
 #define DEBUG_HI			POW_GOOD_HI
 #define DEBUG_LO			POW_GOOD_LO

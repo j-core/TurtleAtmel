@@ -351,6 +351,7 @@ void ResetFlash(void) {
 void SpiInit(uint8 on) {
 
 	if (on) {
+		FPGA_RESET;							// hold FPGA in reset
 		FLASH_DESEL;
 		FLASH_GRAB;							// make FLASH-CS output
 		FLASH_DESEL;
@@ -372,6 +373,7 @@ void SpiInit(uint8 on) {
 		DDRB &= ~0b00000110;				// release SPI lines
 		FLASH_RELEASE;						// release FLASH-CS
 		SD_RELEASE;							// release SD-CS
+		FPGA_RELEASE;
 	}
 }
 
