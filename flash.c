@@ -249,31 +249,36 @@ void CfgVerify(void) {
 //-----------------------------------------------------------------------------
 void CheckBlank(void) {
 
-	uint8 b, failed, aborted;
+	uint8 b, failed, aborted, errors;
+	uint16 j;
 	uint32 addr;
 	
 	fputs_P(PSTR("Blank check, press any key to abort:\r\n"), fio);
-	ReadFlash(FLASH_START, 0);
-	for (addr = 0, aborted = failed = false; addr <= MAX_FLASH; addr++) {
+	for (addr = 0, aborted = failed = false, errors = 0; addr <= MAX_FLASH && !failed; addr += FLASH_PAGE_SIZE) {
 		if (!(addr % 10240)) {
 			fprintf_P(fio, PSTR("%ld kb\r"), addr >> 10);
 			HandleUsb();
 		}
 
-		// read flash
-		b = ReadFlash(FLASH_CONT, 0);
-		if (b != 0xFF) {
-			failed = true;
-//			EmptyTxBuf();
-			fprintf_P(fio, PSTR("%08lX: %02X\r\n"), addr, b);
-			break;
+		// read flash a page at a time, otherwise it's really slow
+		ReadFlash(FLASH_START, addr);
+		for (j = 0; j < FLASH_PAGE_SIZE; j++) {
+			b = ReadFlash(FLASH_CONT, 0);
+			if (b != 0xFF) {
+				failed = true;
+				if (++errors < 30) {
+					EmptyTxBuf();
+					fprintf_P(fio, PSTR("%08lX: %02X\r\n"), addr, b);
+				}
+			}
 		}
+		ReadFlash(FLASH_END, 0);
+
 		if (CDC_Device_ReceiveByte(&VirtualSerial_CDC_Interface) >= 0) {	// get character if there is one
 			aborted = true;
 			break;
 		}
 	}
-	ReadFlash(FLASH_END, 0);
 	
 	if (failed)
 		fputs_P(PSTR("failed \r\n"), fio);

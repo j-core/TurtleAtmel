@@ -35,16 +35,22 @@
 //-----------------------------------------------------------------------------
 /*	LOADING CODE
 
-	To use dfu-programmer to program the device:
+	Need to get into DFU mode and use dfu-programmer to program the device. There are two ways to get into DFU mode:
+
+	1) Hardware method:
 	hold down white button
 	short R119
 
-	run these commands:
+	2) Software method:
+	Press white button to get into programmer mode
+	Execute command 'D' and follow the instructions
+
+	Both methods get you into DFU mode, you then run the following commands from your terminal:
+
 		dfu-programmer atmega32u2 erase
 		dfu-programmer atmega32u2 flash Turtle.hex
-		dfu-programmer atmega32u2 launch
 
-	The commands erase the Atmel, re-program it and then run the new code.
+	The commands erase and re-program the Atmel. You then need to disconnect and reconnect the USB cable.
 
 	BOOTLOADER
 
@@ -128,11 +134,9 @@ static void ReadComparator(void) {
 //	if (gFlags.pgmMode)
 //		return;
 	
-	if (gFlags.powfail)
+	if (!gFlags.powfail)
 //		POW_GOOD_LO;
-	gFlags.ledState = LED_SLOW;
-		else
-	gFlags.ledState = LED_FAST;
+		gFlags.ledState = LED_FAST;
 //		POW_GOOD_HI;
 }
 
@@ -190,34 +194,32 @@ ISR(TIMER1_COMPA_vect) {
 	if (gSdTimeout2) gSdTimeout2--;
 //	if (gSdTimeout3) gSdTimeout3--;
 
-	if (gFlags.pgmMode) {
-		switch (gFlags.ledState) {
-			case LED_IDLE:
+	switch (gFlags.ledState) {
+		case LED_IDLE:					// not executing any command
+			DEBUG_HI;
+			flasher = 0;
+			break;
+		case LED_SLOW:
+			if (++flasher < 8)
 				DEBUG_HI;
-				flasher = 0;
-				break;
-			case LED_SLOW:
-				if (++flasher < 8)
-					DEBUG_HI;
-				else
-					DEBUG_LO;
-				flasher &= 0x0F;
-				break;
-			case LED_MED:
-				if (++flasher < 4)
-					DEBUG_HI;
-				else
-					DEBUG_LO;
-				flasher &= 0x07;
-				break;
-			case LED_FAST:
-				if (++flasher < 2)
-					DEBUG_HI;
-				else
-					DEBUG_LO;
-				flasher &= 0x03;
-				break;
-		}
+			else
+				DEBUG_LO;
+			flasher &= 0x0F;
+			break;
+		case LED_MED:					// executing a command
+			if (++flasher < 4)
+				DEBUG_HI;
+			else
+				DEBUG_LO;
+			flasher &= 0x07;
+			break;
+		case LED_FAST:					// error
+			if (++flasher < 2)
+				DEBUG_HI;
+			else
+				DEBUG_LO;
+			flasher &= 0x03;
+			break;
 	}
 }
 
@@ -341,7 +343,8 @@ void PrintHelp(void) {
 	fputs_P(PSTR("\tD\tput into DFU mode for upgrading this firmware\r\n"), fio);
 	fputs_P(PSTR("\tE\terase FPGA configuration\r\n"), fio);
 	fputs_P(PSTR("\tH\tprint this help message\r\n"), fio);
-//	fputs_P(PSTR("\tM\tset MAC address\r\n"), fio);
+	fputs_P(PSTR("\tM\tmount SD card\r\n"), fio);
+	fputs_P(PSTR("\tU\tunmount SD card\r\n"), fio);
 	fputs_P(PSTR("\tV\tverify FPGA configuration against SD card\r\n"), fio);
 	fputs_P(PSTR("\tW\twrite FPGA configuration from SD card\r\n"), fio);
 	fputs_P(PSTR("\tX\texit programmer mode and run\r\n"), fio);
@@ -358,6 +361,7 @@ void ProcessCommand(char command) {
 	switch (toupper(command)) {
 		case 'B':
 			CheckBlank();
+			gFlags.ledState = LED_IDLE;
 			break;
 		
 		case 'D':
@@ -372,7 +376,7 @@ void ProcessCommand(char command) {
 			HandleUsb();
 
 			fputs_P(PSTR("Disconnect your serial connection, rebooting into DFU mode in 8"), fio);
-			gFlags.ledState = LED_IDLE;
+			gFlags.ledState = LED_FAST;
 			DEBUG_HI;
 			for (uint8 i = 7; i; i--) {
 				for (gSdTimeout = TICK_FREQ; gSdTimeout; )
@@ -381,30 +385,48 @@ void ProcessCommand(char command) {
 			}
 			EmptyTxBuf();
 			cli();
-			DEBUG_LO;
-			wdt_reset();									// reboot
+			wdt_reset();														// reboot
 			wdt_enable(WDTO_30MS);
+			DEBUG_LO;
 			for (;;);
 			break;
 
 		case 'E':
 			EraseFlash();
+			gFlags.ledState = LED_IDLE;
 			break;
 		
-		case 'H':
-			PrintHelp();
+		case 'M':
+			fputs_P(PSTR("Mounting SD drive\r\n"), fio);
+			if (gFlags.sdOk)
+				fputs_P(PSTR("SD drive already mounted!\r\n"), fio);
+			else
+				pf_mount(true);													// mount SD card
+			if (gFlags.sdOk)
+				gFlags.ledState = LED_IDLE;
+			else
+				gFlags.ledState = LED_FAST;
 			break;
 
 		case 'P':
 			ExtReadFlash();
+			gFlags.ledState = LED_IDLE;
 			break;
 		
+		case 'U':
+			fputs_P(PSTR("Unmounting SD drive\r\n"), fio);
+			pf_mount(false);													// unmount SD card
+			gFlags.ledState = LED_FAST;	
+			break;
+
 		case 'V':
 			CfgVerify();
+			gFlags.ledState = LED_IDLE;
 			break;
 
 		case 'W':
 			gFlags.error |=  CfgCopy();
+			gFlags.ledState = LED_IDLE;
 			break;
 
 		case 'X':
@@ -418,12 +440,12 @@ void ProcessCommand(char command) {
 			DEBUG_LO;
 			break;
 
+		case 'H':
 		default:
 			PrintHelp();
+			gFlags.ledState = LED_IDLE;
 			break;
 	}
-//	if (gFlags.pgmMode)
-//		gFlags.ledState = LED_IDLE;
 }
 
 //-----------------------------------------------------------------------------
@@ -442,13 +464,13 @@ void HandleUsb(void) {
 //-----------------------------------------------------------------------------
 int main(void) {
 	
-/*	// check to see if we need to jump to bootloader
+	// check to see if we need to jump to bootloader
 	f_ptr_t booty = (f_ptr_t)0x7000;
 
 	if (MCUSR & 0x08)									// if the reset was caused by watchdog
 		booty();										// jump to bootloader
 	
-	// normal start*/
+	// normal start
 	int16 rxByte;
 	uint16 BufferCount;
 	char c;
@@ -471,13 +493,16 @@ int main(void) {
 			fputs_P(PSTR("\r\nChanging to programmer mode\r\n"), fio);
 			HandleUsb();
 			SerialInit(false);
-			//			InitTimers(true);
+//			InitTimers(true);
 			SpiInit(true);														// take over the SPI bus
 			fputs_P(PSTR("Mounting SD drive\r\n"), fio);
 			pf_mount(true);														// mount SD card
 			PrintHelp();
 			HandleUsb();
-			gFlags.ledState = LED_IDLE;
+			if (!gFlags.sdOk)
+				gFlags.ledState = LED_FAST;
+			else
+				gFlags.ledState = LED_IDLE;
 		}
 		
 		if (gFlags.pgmMode) {
